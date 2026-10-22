@@ -1,0 +1,33 @@
+# On a v* tag, builds whatnow for macOS, Linux, and Windows and attaches the binaries to a
+# GitHub release. `just release` still does this by hand, along with the Homebrew tap.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: extractions/setup-just@v3
+      - name: Build
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: just binaries "$VERSION"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
