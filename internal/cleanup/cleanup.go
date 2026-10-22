@@ -112,7 +112,7 @@ func (r *Runner) Clean(ctx context.Context, captured domain.Task) (int64, error)
 		return 0, err
 	}
 	var res result
-	if err := json.Unmarshal([]byte(reply), &res); err != nil {
+	if err := json.Unmarshal([]byte(llm.JSONReply(reply)), &res); err != nil {
 		return 0, fmt.Errorf("parse reply: %w", err)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -189,5 +190,23 @@ func TestSettingsSavedBeforeEndOfDayExistedGetTheDefault(t *testing.T) {
 	}
 	if got.EndOfDay != "17:30" || got.Style != "terse" {
 		t.Errorf("loaded %+v", got)
+	}
+}
+
+func TestEnvAllowedHosts(t *testing.T) {
+	got, err := settings.EnvAllowedHosts(" 10.200.1.149, whatnow.lan,,")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"10.200.1.149", "whatnow.lan"}; !slices.Equal(got, want) {
+		t.Errorf("hosts = %q, want %q", got, want)
+	}
+	if got, err := settings.EnvAllowedHosts(""); err != nil || len(got) != 0 {
+		t.Errorf("empty = %q, %v; want none", got, err)
+	}
+	for _, bad := range []string{"10.200.1.149:7777", "http://whatnow.lan"} {
+		if _, err := settings.EnvAllowedHosts(bad); !errors.Is(err, settings.ErrInvalid) {
+			t.Errorf("EnvAllowedHosts(%q) err = %v, want ErrInvalid", bad, err)
+		}
 	}
 }

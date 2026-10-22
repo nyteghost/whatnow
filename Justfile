@@ -26,16 +26,24 @@ build: web
 install: web
     go install ./cmd/whatnow
 
-# Builds stripped Mac binaries, publishes them as a GitHub release, and points the Homebrew formula in jameynakama/homebrew-tap at them: `just release v0.1.0`. The tag lands on main as GitHub has it, so push first.
-release version: web
+# Builds stripped binaries for macOS, Linux, and Windows into dist: `just binaries v0.1.0`.
+binaries version: web
     #!/usr/bin/env bash
     set -euo pipefail
     v={{version}}
     rm -rf dist && mkdir dist
-    for arch in arm64 amd64; do
-        GOOS=darwin GOARCH=$arch go build -trimpath -ldflags="-s -w -X main.Version=${v#v}" -o dist/whatnow-darwin-$arch ./cmd/whatnow
+    for target in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+        os=${target%/*} arch=${target#*/} ext=
+        [[ $os == windows ]] && ext=.exe
+        CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags="-s -w -X main.Version=${v#v}" -o dist/whatnow-$os-$arch$ext ./cmd/whatnow
     done
-    gh release create $v dist/whatnow-darwin-* --title $v --generate-notes
+
+# Publishes the binaries as a GitHub release and points the Homebrew formula in jameynakama/homebrew-tap at the Mac ones: `just release v0.1.0`. The tag lands on main as GitHub has it, so push first.
+release version: (binaries version)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    v={{version}}
+    gh release create $v dist/* --title $v --generate-notes
     tap=$(mktemp -d)
     trap 'rm -rf "$tap"' EXIT
     gh repo clone jameynakama/homebrew-tap "$tap" -- --depth 1 --quiet
@@ -70,6 +78,10 @@ dev *args:
 e2e: web
     cd web && npx playwright install chromium && npx playwright test
 
+# Builds the container image as whatnow:dev. `docker compose up` runs the published one.
+docker:
+    docker build -t whatnow:dev .
+
 # A demo run on its own database and port, on a clock `just clock` moves. Delete .demo to start over.
 [positional-arguments]
 demo *args: web
@@ -86,5 +98,6 @@ clock *when:
     set -euo pipefail
     when="$*"
     [[ $when == *-* ]] || when="$(cut -d' ' -f1 .demo/clock) $when"
-    date -j -f "%Y-%m-%d %H:%M" "$when" >/dev/null
+    # BSD date on a Mac, GNU date elsewhere.
+    date -j -f "%Y-%m-%d %H:%M" "$when" >/dev/null 2>&1 || date -d "$when" >/dev/null
     echo "$when" > .demo/clock

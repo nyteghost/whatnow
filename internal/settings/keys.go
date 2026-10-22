@@ -7,9 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zalando/go-keyring"
-
 	"github.com/jameynakama/whatnow/internal/llm"
+	"github.com/jameynakama/whatnow/internal/secrets"
 )
 
 // ErrNotConfigured means no provider is chosen, or the chosen one has no key.
@@ -19,22 +18,22 @@ var ErrNotConfigured = errors.New("no LLM provider is set up")
 type KeySource string
 
 const (
+	// KeyFromKeychain means whatnow saved the key itself: in the OS keychain, or in the secrets
+	// file when one is set up.
 	KeyFromKeychain KeySource = "keychain"
 	KeyFromEnv      KeySource = "env"
 )
-
-const keychainService = "whatnow"
 
 var envVars = map[Provider]string{Anthropic: "ANTHROPIC_API_KEY", OpenAI: "OPENAI_API_KEY"}
 
 // Key returns a provider's API key from the keychain, falling back to the provider's usual
 // environment variable.
 func Key(p Provider) (string, KeySource, error) {
-	key, err := keyring.Get(keychainService, string(p))
+	key, err := secrets.Get(string(p))
 	if err == nil {
 		return key, KeyFromKeychain, nil
 	}
-	if !errors.Is(err, keyring.ErrNotFound) {
+	if !errors.Is(err, secrets.ErrNotFound) {
 		// An unavailable keychain (no Secret Service, a denied prompt) shouldn't hide an env key.
 		log.Printf("read %s key from keychain: %v", p, err)
 	}
@@ -52,7 +51,7 @@ func SetKey(p Provider, key string) error {
 	if key == "" {
 		return fmt.Errorf("%w: key is empty", ErrInvalid)
 	}
-	return keyring.Set(keychainService, string(p), key)
+	return secrets.Set(string(p), key)
 }
 
 // DeleteKey removes a provider's key from the keychain. Deleting a key that isn't there is fine.
@@ -60,7 +59,7 @@ func DeleteKey(p Provider) error {
 	if !p.Valid() {
 		return fmt.Errorf("%w: provider %q", ErrInvalid, p)
 	}
-	if err := keyring.Delete(keychainService, string(p)); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+	if err := secrets.Delete(string(p)); err != nil && !errors.Is(err, secrets.ErrNotFound) {
 		return err
 	}
 	return nil

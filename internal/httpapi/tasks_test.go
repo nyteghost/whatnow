@@ -205,3 +205,30 @@ func TestAllowsTheHostsInSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowsTheHostsFromTheEnvironment(t *testing.T) {
+	api := newAPIAllowing(t, "10.200.1.149", "whatnow.lan")
+	get := func(host string) int {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		api.handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	cases := []struct {
+		name, host string
+		status     int
+	}{
+		{"an allowed IP with the port", "10.200.1.149:7777", http.StatusOK},
+		{"an allowed name, odd case", "WhatNow.lan", http.StatusOK},
+		{"another LAN address", "10.200.1.150:7777", http.StatusForbidden},
+		{"a subdomain of an allowed name", "evil.whatnow.lan", http.StatusForbidden},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := get(c.host); got != c.status {
+				t.Errorf("status = %d, want %d", got, c.status)
+			}
+		})
+	}
+}

@@ -233,7 +233,7 @@ func ask[T any](ctx context.Context, model llm.Client, req llm.Request, check fu
 }
 
 func parse[T any](reply string, out *T, check func(T) error) error {
-	if err := json.Unmarshal([]byte(reply), out); err != nil {
+	if err := json.Unmarshal([]byte(llm.JSONReply(reply)), out); err != nil {
 		return fmt.Errorf("the reply is not valid JSON: %v", err)
 	}
 	return check(*out)

@@ -18,6 +18,7 @@ import (
 
 	"github.com/jameynakama/whatnow/internal/app"
 	"github.com/jameynakama/whatnow/internal/httpapi"
+	"github.com/jameynakama/whatnow/internal/secrets"
 	"github.com/jameynakama/whatnow/internal/settings"
 	"github.com/jameynakama/whatnow/internal/tui"
 	"github.com/jameynakama/whatnow/internal/web"
@@ -67,6 +68,11 @@ func command(args []string) (string, []string) {
 }
 
 func open(dbPath string) (*app.App, error) {
+	where, err := secrets.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("secrets are kept in %s", where)
 	now := time.Now
 	if path := os.Getenv("WHATNOW_DEMO_CLOCK"); path != "" {
 		now = demoClock(path)
@@ -80,11 +86,22 @@ func serve(addr, dbPath string) error {
 		return err
 	}
 	defer a.Close()
+	srv, err := newServer(a, addr)
+	if err != nil {
+		return err
+	}
 	log.Printf("whatnow listening on http://%s (db %s)", addr, a.DBPath)
-	return newServer(a, addr).ListenAndServe()
+	return srv.ListenAndServe()
 }
 
-func newServer(a *app.App, addr string) *http.Server {
+func newServer(a *app.App, addr string) (*http.Server, error) {
+	hosts, err := settings.EnvAllowedHosts(os.Getenv(settings.AllowedHostsEnv))
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) > 0 {
+		log.Printf("also answering %s, from %s", strings.Join(hosts, ", "), settings.AllowedHostsEnv)
+	}
 	handler := httpapi.New(httpapi.Deps{
 		Service:      a.Service,
 		Hub:          a.Hub,
@@ -98,9 +115,10 @@ func newServer(a *app.App, addr string) *http.Server {
 		Agent:        a.Agent,
 		Integrations: a.Integrations,
 		Static:       web.Handler(),
+		AllowedHosts: hosts,
 	})
 	// No WriteTimeout: it would cut off the long-lived SSE stream.
-	return &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+	return &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second}, nil
 }
 
 // listenUnlessTaken listens on addr, or returns a nil listener when something already holds it.
@@ -133,7 +151,11 @@ func runTUI(addr, dbPath string) error {
 		return err
 	}
 	if ln != nil {
-		srv := newServer(a, addr)
+		srv, err := newServer(a, addr)
+		if err != nil {
+			ln.Close()
+			return err
+		}
 		go func() {
 			if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("web server stopped: %v", err)

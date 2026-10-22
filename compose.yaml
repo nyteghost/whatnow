@@ -1,0 +1,24 @@
+# whatnow in a container. Works as a Portainer stack too: paste this in and set the environment.
+#
+# WHATNOW_ALLOWED_HOSTS is required: the server refuses any Host it doesn't know, so list the
+# address you'll open it at (an IP or hostname, no port), comma-separated.
+services:
+  whatnow:
+    image: ghcr.io/nyteghost/whatnow:latest
+    container_name: whatnow
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    environment:
+      WHATNOW_ALLOWED_HOSTS: ${WHATNOW_ALLOWED_HOSTS:?list the host or IP you will open whatnow at}
+      TZ: ${TZ:-America/New_York}
+      # Optional: a key here instead of in the setup screen.
+      # ANTHROPIC_API_KEY: ""
+      # OPENAI_API_KEY: ""
+    volumes:
+      # Holds whatnow.db and secrets.json. A named volume keeps the image's ownership; a bind mount
+      # must be writable by uid 65532.
+      - whatnow-data:/data
+
+volumes:
+  whatnow-data:

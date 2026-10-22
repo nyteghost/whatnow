@@ -9,6 +9,7 @@ import (
 
 	"github.com/jameynakama/whatnow/internal/llm"
 	"github.com/jameynakama/whatnow/internal/llm/fake"
+	"github.com/jameynakama/whatnow/internal/secrets"
 	"github.com/jameynakama/whatnow/internal/settings"
 )
 
@@ -18,6 +19,7 @@ func init() {
 	keyring.MockInit()
 	os.Unsetenv("ANTHROPIC_API_KEY")
 	os.Unsetenv("OPENAI_API_KEY")
+	os.Unsetenv(secrets.FileEnv)
 	newClient = func(s settings.Settings) (llm.Client, settings.ProviderConfig, error) {
 		_, cfg, err := settings.NewClient(s)
 		if err != nil {

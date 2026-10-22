@@ -49,6 +49,12 @@ type testAPI struct {
 
 func newAPI(t *testing.T) *testAPI {
 	t.Helper()
+	return newAPIAllowing(t)
+}
+
+// newAPIAllowing is newAPI with hosts allowed from the environment.
+func newAPIAllowing(t *testing.T, hosts ...string) *testAPI {
+	t.Helper()
 	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +97,7 @@ func newAPI(t *testing.T) *testAPI {
 		Integrations: integrations.NewRunner(db, svc, api.hub, testLoc, now,
 			gcal.New(nil), jira.New(nil),
 		),
+		AllowedHosts: hosts,
 	})
 	return api
 }
