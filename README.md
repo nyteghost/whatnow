@@ -72,6 +72,30 @@ On an Intel Mac, swap `arm64` for `amd64`. The binary isn't signed, so downloadi
 browser gets it blocked by Gatekeeper. `curl` doesn't, and `xattr -d com.apple.quarantine whatnow`
 undoes a browser download.
 
+### On Linux or Windows
+
+Each [release](https://github.com/jameynakama/whatnow/releases) has binaries for
+`linux-amd64`, `linux-arm64`, `windows-amd64`, and `windows-arm64` too. On Linux, keys go in
+the Secret Service keychain (GNOME Keyring, KWallet) when one is running. Without one, set
+`WHATNOW_SECRETS_FILE` (see [Docker](#docker)).
+
+### Docker
+
+The image keeps everything in `/data`: the database and, since a container has no keychain, a
+`secrets.json` readable only by the container's user. The server answers only the hosts you list
+in `WHATNOW_ALLOWED_HOSTS`, so name the IP or hostname you'll open it at, with no port:
+
+```sh
+docker run -d --name whatnow -p 7777:7777 \
+  -e WHATNOW_ALLOWED_HOSTS=192.168.1.20 -e TZ=America/New_York \
+  -v whatnow-data:/data ghcr.io/nyteghost/whatnow:latest
+```
+
+Or use [compose.yaml](compose.yaml), which also works pasted into a Portainer stack. To use
+Ollama on another machine, pick *OpenAI-compatible* in setup with a base URL like
+`http://192.168.1.30:11434/v1`. Anyone who can reach an allowed host gets full access, so keep it
+on your LAN or tailnet.
+
 ### From source
 
 You need [Go](https://go.dev/dl/) 1.27+, Node 24, and [just](https://github.com/casey/just).
@@ -86,7 +110,7 @@ just install   # builds the web UI and puts whatnow in your GOBIN
 
 whatnow works with Anthropic (the default) or any OpenAI-compatible API, such as OpenAI,
 OpenRouter, Ollama, or LM Studio. Set it up on the first run, or later in settings. Keys are
-stored in your OS keychain, never in the database. `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in the
+stored in your OS keychain (or the file `WHATNOW_SECRETS_FILE` names), never in the database. `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in the
 environment works too.
 
 Consumer subscriptions (Claude Pro or Max, ChatGPT plans) can't power whatnow. It needs an API key.

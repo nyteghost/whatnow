@@ -1,0 +1,17 @@
+.git
+.github
+.demo
+.superpowers
+dist
+coverage.out
+whatnow
+whatnow-e2e
+tui.log
+web/node_modules
+web/build
+web/.svelte-kit
+web/test-results
+web/playwright-report
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+docs/screenshots
