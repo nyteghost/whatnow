@@ -18,6 +18,7 @@ import (
 
 	"github.com/jameynakama/whatnow/internal/app"
 	"github.com/jameynakama/whatnow/internal/httpapi"
+	"github.com/jameynakama/whatnow/internal/secrets"
 	"github.com/jameynakama/whatnow/internal/settings"
 	"github.com/jameynakama/whatnow/internal/tui"
 	"github.com/jameynakama/whatnow/internal/web"
@@ -67,6 +68,11 @@ func command(args []string) (string, []string) {
 }
 
 func open(dbPath string) (*app.App, error) {
+	where, err := secrets.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("secrets are kept in %s", where)
 	now := time.Now
 	if path := os.Getenv("WHATNOW_DEMO_CLOCK"); path != "" {
 		now = demoClock(path)

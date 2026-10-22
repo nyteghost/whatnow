@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/zalando/go-keyring"
+	"github.com/jameynakama/whatnow/internal/secrets"
 )
 
 // saved is an integration's settings as stored. Values and row values hold text fields only;
@@ -56,8 +56,6 @@ func newRowID() string {
 	return hex.EncodeToString(b)
 }
 
-const keychainService = "whatnow"
-
 // account names a secret in the keychain: one of the integration's own fields, or a row's.
 func account(id, rowID, key string) string {
 	if rowID == "" {
@@ -68,8 +66,8 @@ func account(id, rowID, key string) string {
 
 // secret reads a secret, returning "" when it isn't set.
 func secret(acct string) (string, error) {
-	v, err := keyring.Get(keychainService, acct)
-	if errors.Is(err, keyring.ErrNotFound) {
+	v, err := secrets.Get(acct)
+	if errors.Is(err, secrets.ErrNotFound) {
 		return "", nil
 	}
 	return v, err
@@ -79,7 +77,7 @@ func secret(acct string) (string, error) {
 func DeleteSecrets(accounts []string) error {
 	var errs []error
 	for _, acct := range accounts {
-		if err := keyring.Delete(keychainService, acct); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		if err := secrets.Delete(acct); err != nil && !errors.Is(err, secrets.ErrNotFound) {
 			errs = append(errs, err)
 		}
 	}

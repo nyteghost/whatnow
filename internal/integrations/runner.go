@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zalando/go-keyring"
-
 	"github.com/jameynakama/whatnow/internal/domain"
+	"github.com/jameynakama/whatnow/internal/secrets"
 	"github.com/jameynakama/whatnow/internal/service"
 	"github.com/jameynakama/whatnow/internal/stream"
 )
@@ -201,7 +200,7 @@ func (r *Runner) Save(ctx context.Context, id string, u Update) (View, error) {
 		}
 	}
 	for acct, v := range writes {
-		if err := keyring.Set(keychainService, acct, v); err != nil {
+		if err := secrets.Set(acct, v); err != nil {
 			return View{}, err
 		}
 	}
