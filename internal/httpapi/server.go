@@ -46,6 +46,9 @@ type Deps struct {
 	// Static serves the web client for every GET outside the API.
 	Static       http.Handler
 	Integrations *integrations.Runner
+	// AllowedHosts are answered alongside the ones in settings. They come from the environment,
+	// so a server reached only over the network, as in a container, can be set up at all.
+	AllowedHosts []string
 }
 
 type Server struct {
@@ -135,15 +138,18 @@ func isLoopback(hostport string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// isAllowed reports whether the request's Host is one of the allowed hosts in settings. Settings
-// that can't be read allow nothing.
+// isAllowed reports whether the request's Host is allowed by the environment or in settings.
+// Settings that can't be read allow nothing beyond the environment's.
 func (s *Server) isAllowed(r *http.Request) bool {
+	host := hostname(r.Host)
+	if slices.ContainsFunc(s.AllowedHosts, func(h string) bool { return strings.EqualFold(h, host) }) {
+		return true
+	}
 	saved, err := settings.Load(r.Context(), s.DB)
 	if err != nil {
 		log.Printf("load settings for allowed hosts: %v", err)
 		return false
 	}
-	host := hostname(r.Host)
 	return slices.ContainsFunc(saved.AllowedHosts, func(h string) bool { return strings.EqualFold(h, host) })
 }
 

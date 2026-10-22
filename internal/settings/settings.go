@@ -141,11 +141,36 @@ func (s Settings) Validate() error {
 		return fmt.Errorf("%w: alert lead time is %d minutes, it must be 1 to %d", ErrInvalid, s.AlertLeadMinutes, MaxAlertLead)
 	}
 	for _, h := range s.AllowedHosts {
-		if h == "" || strings.ContainsAny(h, ":/ ") {
-			return fmt.Errorf("%w: allowed host %q must be a bare hostname, with no scheme or port", ErrInvalid, h)
+		if err := validHost(h); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func validHost(h string) error {
+	if h == "" || strings.ContainsAny(h, ":/ ") {
+		return fmt.Errorf("%w: allowed host %q must be a bare hostname, with no scheme or port", ErrInvalid, h)
+	}
+	return nil
+}
+
+// AllowedHostsEnv names the environment variable listing extra allowed hosts, comma-separated.
+const AllowedHostsEnv = "WHATNOW_ALLOWED_HOSTS"
+
+// EnvAllowedHosts parses AllowedHostsEnv's value. Spaces and empty entries are ignored.
+func EnvAllowedHosts(v string) ([]string, error) {
+	var hosts []string
+	for _, h := range strings.Split(v, ",") {
+		if h = strings.TrimSpace(h); h == "" {
+			continue
+		}
+		if err := validHost(h); err != nil {
+			return nil, fmt.Errorf("%s: %w", AllowedHostsEnv, err)
+		}
+		hosts = append(hosts, h)
+	}
+	return hosts, nil
 }
 
 // ClockLayout is the form of a local time of day, such as EndOfDay.
